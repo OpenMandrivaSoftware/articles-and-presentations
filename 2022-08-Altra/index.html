@@ -1,15 +1,52 @@
 <html>
 	<head>
-		<title>OpenMandriva on Altra</title>
+		<title>OpenMandriva on Ampere Altra</title>
 	</head>
 	<body>
-		<p><img src="opened-box.jpg" alt="Altra in its packaging" /></p>
-		<p><img src="unpacking-front.jpg" alt="Altra front side" /></p>
-		<p><img src="unpacking-back.jpg" alt="Altra back side" /></p>
-		<p><img src="powercables.jpg" alt="Power cables" /></p>
-		<p><img src="powercables-for-pdu.jpg" alt="Power cables for PDUs included" /></p>
-		<p><img src="equipment.jpg" alt="Equipment" /></p>
-		<p><img src="altra-installed.jpg" alt="Installed Altra" /></p>
-		<p><img src="OM-install.jpg" alt="OM Install USB stick" /></p>
+		<h1>OpenMandriva on Ampere Altra</h1>
+		<div>
+			<img src="opened-box.jpg" alt="Altra in its packaging" style="vertical-align: top; float: left; width: 10%; margin: 0 15px 0 0;" />
+			<p>There has been great news for OpenMandriva a couple of days ago: We got a nice large box in the mail.</p>
+			<p>Even though the weight of the box was pretty impressive when I had to carry it to the second floor, the content turned out to be far more impressive - a Mt. Collins server with Ampere Altra CPUs - 160 CPU cores and 128 GB RAM, given to us by Ampere Computing to support our aarch64 development efforts.</p>
+			<p>Quite a step forward from the eMAG we've been using as our main aarch64 builder so far, and not even comparable to the various Rock Pi 4 boards that serve as our backup builders.</p>
+		</div>
+		<div style="clear: both;">
+			<img src="unpacking-front.jpg" alt="Altra front side" style="vertical-align: top; float: right; width: 33%; margin: 0 0 0 15px;" />
+			<p>The front side of the server has 24 2.5" NVMe U.2 SSD slots that can be hotplugged, as well as 2 USB ports and a VGA port.</p>
+			<p>If you're coming from the desktop or embedded world, don't laugh -- VGA ports are still very common (and useful) in the data center - many KVMs or video capture interfaces have not moved on to DisplayPort or HDMI.</p>
+		</div>
+		<div style="clear: left;">
+			<img src="unpacking-back.jpg" alt="Altra back side" style="vertical-align: top; float: left; width: 33%; margin: 0 15px 0 0;" /><p style="vertical-align: center;">On the back side, there are numerous network interfaces (for both the main machine and the BMC (Board Management Console - a networked interface that can control the main computer)), 2 more USB ports, a VGA port, an RJ45 plug for the BMC's serial port, 2 PSUs (only one is needed, the other is a backup), and various slots for PCIe cards - so if we want to have fun and abuse the machine for something it was definitely not meant to do, we can plug in a PCIe graphics card, a PCIe sound card, and have way more cores in our gaming machine than all those Windows losers. ;)</p>
+		</div>
+		<div style="clear: both;">
+			<img src="powercables-for-pdu.jpg" alt="Power cables for PDUs included" style="vertical-align: top; float: right; width: 10%; margin: 0 15px 0 0;" /><p>Beyond the usual power plugs, the box also includes C-14 to C-13 power cords - very useful if you want to connect it to a power distribution unit so you can power-cycle it remotely if something goes wrong, or to a UPS that uses this type of plug.</p>
+			<p>Time to connect the box into our network and see what it can do!</p>
+		</div>
+		<div style="clear: both;">
+			<img src="altra-installed.jpg" alt="Installed Altra" style="vertical-align: top; float: left; width: 33%; margin: 0 15px 0 0;" />
+			<p>It's not like we can afford a professional 19" rack, but the box fits nicely into our infrastructure - below the Altra is the PDU and a network switch, and below that is C64 (no, not what you're thinking. Obviously that stands for "a <b>C</b>omputer with <b>64</b> GB RAM"...), one of our main x86 builders.</p>
+			<p>The box boots up without problems - showing a very PC-BIOS-like firmware setup tool and a pretty standard BMC. It is preinstalled with CentOS Stream 8.</p>
+			<p>The PDU is not an accurate measuring tool for power consumption, but it gives a good indication: Power consumption went from 0.8A with C64, a RISC-V builder and a network switch connected to 1.5A - so the power consumption of this 160-core box is comparable to that of a 16-core Threadripper.</p>
+			<p>It takes 7 minutes and 4 seconds to boot to a point where the network is available though -- and when restarting, further 6 minutes and 55 seconds to get back to the start (making a reboot take just below 14 minutes). While not a big problem (this is not the type of computer you reboot all the time), that should be something we can improve...</p>
+		</div>
+		<div style="clear: both;">
+			<img src="OM-install.jpg" alt="OM Install USB stick" style="vertical-align: top; float: right; width: 33%; margin: 0 0 0 15px;" />
+			<p>So let's see what happens if we just plug in an OpenMandriva USB stick and reboot...</p>
+			<p>Two pleasant surprises first -- we didn't have to make any modifications to boot on this machine, it can use the same aarch64 image as a much lower powered Synquacer or eMAG. And even when booting from the USB stick rather then the built-in high-speed NVMe, the boot process was comparably fast - down to 4 minutes and 52 seconds.</p>
+			<p>A newer kernel and toolchain can work miracles - and this is one of the reasons why we insist on highlighting that "sta<b>b</b>le" is spelled with a "b". A server operating system has to be stable, not necessarily stale.</p>
+			<p>While staying on an LTS kernel branch forever does have the advantage of the least number of possible surprises, it also means missing out on a lot of improvements - and causes all the more trouble when finally updating to something newer because the old code is abandoned upstream, or can't support a new hardware component or networking protocol that has become necessary.</p>
+			<p>It is probably overdone to run ROME (our rolling release version) or even Cooker (our development branch) on a server and keep track of changes on a daily basis - but that's what the stable "Rock" (point) releases are for.</p>
+			<p>With the storage devices immediately recognized, installing was as painless as running the install script.</p>
+			<p>The subsequent reboot took 17 seconds rather than almost 7 minutes - and it takes 4:24 to get from turning the machine on to a usable OpenMandriva prompt when running on the NVMe.</p>
+			<p>Now, with the OS we want installed, it's time to put the box to good use, and use it for what we need it for: compiling.</p>
+			<p>Installing our build system and connecting it into ABF, our Automated Build Farm, is a matter of running a simple docker container. Unsurprisingly, there were no problems doing that.</p>
+			<p>Build times are really good: Building our kernel package (which builds the kernel 4 times -- once with clang in a desktop configuration, once with clang in a server configuration, once with gcc in a desktop configuration, once with gcc in a server configuration -- all 4 kernel variants have almost all modules enabled, given a distribution kernel can never know what it will be run on) took 2 hours, 14 minutes compared to 3 hours, 37 minutes on the Threadripper.</p>
+			<p>Building libreoffice took it 2 hours, 8 minutes compared to 4 hours, 4 minutes on the Threadripper.</p>
+			<p>And it could get even faster - the bottleneck turns out to be memory. While 128 GB is a lot of space, it's only 0.8 GB per core on a 160-core machine. If we can make full use of the CPU with processes that are also memory intensive (keep in mind OpenMandriva uses LTO (link time optimizations) in just about everything - that means the entire code has to be visible to the linker at the same time), memory gets tight.</p>
+			<p>Now, for the first time, we have aarch64 packages churned out at a much faster rate than their x86_64 and znver1 counterparts - to the extent that I was curious about running an x86_64 environment in qemu on the Altra and running an x86_64 builder in there.</p>
+			<p>It works - but qemu isn't fast enough (yet) to beat the Threadripper in this setup. But making packages more crosscompiler friendly (something we're working on already -- stay tuned) should help a lot.</p>
+			<p>Does our new aarch64 toy mean we'll move our focus on the aarch64 side to servers only? Not at all. While we do have some new aarch64 server projects like getting OpenMandriva into Oracle Cloud (running on the same Altra processors there - both in bare metal and virtual machines - is already working), we will not go the way of some other distributions and require UEFI and ACPI for our aarch64 port.</p>
+			<p>Devices like the PinePhone or the PineBook Pro, or the Raspberry Pi, or an upcoming project we aren't talking about yet, are equally important, and a fast aarch64 builder is helping them a lot. Even though some of the target devices need a custom kernel, or a custom bootloader, or special firmware, or all of that, we support all devices from a common tree using a new tool, <a href="https://github.com/OpenMandrivaSoftware/os-image-builder">os-image-builder</a>, that we will introduce in another article soon.</p>
+		</div>
 	</body>
 </html>
