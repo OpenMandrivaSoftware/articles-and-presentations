@@ -1,0 +1,81 @@
+<html>
+	<head>
+		<title>Your phone, your computer and that high end server are all the same... Right?</title>
+	</head>
+	<body>
+		<h1>Your phone, your computer and that high end server are all the same... Right?</h1>
+		<p>That, or something close to that is what people may think when they look at OpenMandriva's aarch64 repositories - from which we indeed build operating systems for a PinePhone, a desktop machine, something as high end as an <a href="https://www.openmandriva.org/en/news/article/openmandriva-on-ampere-altra">Ampere Altra server</a>, and of course virtual machines running on the latter.</p>
+		<p>Of course, that is only partially right -- all those devices use the same processor architecture (ARMv8, sometimes with a few extensions), but other than that, they have little in common.</p>
+		<p>Some are so different that they don't even boot with our normal kernel or bootloader.</p>
+		<p>Some distributions "solve" this problem by targeting only devices that meet some minimal criteria, like "UEFI support" and/or "boots mainline kernel" - while in an ideal world, that would be all devices, in the real world we find that too restrictive, typically the cheapest available devices (and yes, one way to push Linux to the people at large is through price) don't meet the criteria.</p>
+		<p>Another way to solve this is building a completely custom image for each device - something that projects like Yocto and OpenEmbedded do well, but something that doesn't really fit with the way we want to build OpenMandriva.</p>
+		<p>So we've had to come up with a third way - and created <a href="https://github.com/OpenMandrivaSoftware/os-image-builder">os-image-builder</a>.</p>
+		<p>Looking at how devices really differ, we've decided that it is feasible (and in many ways a good idea) to use the same binary packages for each device - but devices differ in what packages they need (usually there's no point in putting a fancy desktop on a server, or a phone app on your desktop), and possibly a few very low level packages (bootloader, kernel).</p>
+		<p>Also, what packages get installed should not be tied to the device - something like a Raspberry Pi 4 can make a good entry level desktop as well as a decent web server for a low traffic website.</p>
+		<p>So the key thoughts behind os-image-builder were from the start: Keep device support and content/use case separate, and make it as easy as possible to support as many devices as possible.</p>
+		<h2>Adding new devices</h2>
+		<p>Adding a new device, comes down to writing a config file that is usually just a few lines. For example,</p>
+		<p><pre><tt>
+ARCH=aarch64
+		</tt></pre></p>
+		<p>is an entirely sufficient config file for the Altra. It tells <i>os-image-builder</i> to use aarch64 (rather than x86_64, riscv, etc.) packages, and assumes defaults for everything else (UEFI supported, use an initramfs, ...)</p>
+		<p>On a device requiring a more complex setup, like a Raspberry Pi 4 (custom kernel, no UEFI), a config file can look like this:</p>
+		<p><pre><tt>
+ARCH="aarch64"
+HWPACKAGES="kernel-firmware kernel-firmware-extra"
+HWPACKAGES_gui="lib64dri-drivers-vc4"
+KERNEL="https://github.com/raspberrypi/linux.git#rpi-5.15.y"
+KERNEL_CONFIG="bcm2711_defconfig"
+KERNEL_EXTRACONFIG="--module NTFS3_FS --enable NTFS3_LZX_XPRESS --enable NTFS3_FS_POSIX_ACL --disable NTFS3_64BIT_CLUSTER"
+DTB="broadcom/bcm2711-rpi-400"
+CMDLINE="dwc_otg.lpm_enable=0 console=ttyS0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait"
+NEED_INITRD=no
+		</tt></pre></p>
+		<p>The <tt>ARCH=</tt> line, once again, tells <i>os-image-builder</i> to use aarch64 packages.</p>
+		<p><tt>HWPACKAGES</tt> lists additional packages that need to be installed on the target device - such as firmware files.</p>
+		<p><tt>HWPACKAGES_gui</tt> lists additional packages that need to be installed if, and only if, a GUI is needed - in this case, the driver for the VC4 graphics chipset. The <tt>_gui</tt> suffix is not a hardcoded magic word - you can also add hardware packages extending any other package set (more on package sets a bit later).</p>
+		<p><tt>KERNEL</tt> points to a git repository containing the custom kernel for the device - in this case the <i>rpi-5.15.y</i> branch of the Raspberry Pi kernel.</p>
+		<p><tt>KERNEL_CONFIG</tt> points to the kernel configuration -- either a defconfig contained in the kernel tree or a file in the config directory.</p>
+		<p><tt>KERNEL_EXTRACONFIG</tt> allows adding and removing kernel options, to allow taking an upstream defconfig while still making a few adjustments.</p>
+		<p><tt>DTB</tt> indicates which DeviceTree file (if any) to use</p>
+		<p><tt>CMDLINE</tt> is the kernel command line</p>
+		<p><tt>NEED_INITRD</tt> indicates whether or not an initrd/initramfs is needed (by default, an initramfs will be generated and used).</p>
+		<h2>Selecting packages</h2>
+		<p>Obviously, if you want to use those devices for what they're meant for, you don't want to include the same set of packages on your phone and your server - os-image-builder has to take care of different packages to be included in the image. Without any extra arguments, it creates a minimal image.</p>
+		<p>You can manually add packages using the <tt>-p</tt> argument - so e.g. <tt>./build -p neovim -p clang aarch64-uefi</tt> gives you a generic image for UEFI compatible aarch64 devices that includes neovim and clang (and their dependencies) in addition to the minimal package set.</p>
+		<p>Since it would be too tedious to specify hundreds of packages to create a typical desktop build, there's also the <tt>-P</tt> option that adds a package set - e.g. <tt>./build -P kde -P audio -p neovim pi4b</tt> produces a Raspberry Pi 4B image with the KDE desktop, audio support, and the neovim package (to show you can combine <tt>-p</tt> and <tt>-P</tt>).</p>
+		<p>Creating a new packageset is easy: Essentially it is a text file with a .pkgs extension in the packagesets/ directory. To be even more flexible, those files are run through a C preprocessor -- so you can use familiar statements like <tt>#include</tt> to add another dependant package set, or <tt>#define</tt> and <tt>#ifdef</tt> to handle special requirements.</p>
+		<p>The preprocessor is invoked with a few standard defines:<ul>
+			<li><tt>ARCH_xyz</tt> -- defined when building for the xyz architecture</li>
+			<li><tt>TARGET_xyz</tt> -- defined when building for the xyz target</li>
+			<li><tt>PACKAGESET_xyz</tt> -- defined when the packageset xyz is included</li>
+			<li><tt>LIB(xyz)</tt> -- expands to the library package name for libxyz for the target architecture (typically libxyz or lib64xyz)</li>
+		</ul></p>
+		<p><tt>./build -P kde -P audio pi4b</tt> would result in <tt>ARCH_aarch64</tt>, <tt>TARGET_raspberry_pi4b</tt>, <tt>TARGET_pi4b</tt>, <tt>PACKAGESET_kde</tt> and <tt>PACKAGESET_audio</tt> being defined for the packageset files to see.</p>
+		<p>For example, a <i>libreoffice</i> packageset file could look like this:</p>
+		<p><tt>libreoffice-writer<br/>
+			libreoffice-calc<br/>
+			libreoffice-impress<br/>
+			#ifdef PACKAGESET_kde<br/>
+			libreoffice-kde<br/>
+			#endif<br/>
+			#ifdef PACKAGESET_gnome<br/>
+			libreoffice-gtk<br/>
+			#endif</tt>
+		</p>
+		<p>This is also where the <tt>HWPACKAGES_*</tt> option in the <i>config</i> file comes into play - packages listed in <tt>HWPACKAGES_xyz</tt> get added to the <i>xyz</i> packageset.</p>
+		<p>Of course this could also be accomplished by adding a number of <tt>#ifdef TARGET_xyz</tt> statements to the packageset - but it's nicer to keep device specific requirements and packagesets separated.</p>
+		<h2>Dealing with really odd devices...</h2>
+		<p>Of course some devices (e.g. Android phones...) need customizations beyond kernel, package choice and bootloader - they may need a custom filesystem, a bootloader image on a special partition, special postprocessing of a filesystem (e.g. a Dockerfile when building containers, or a qcow2 image when targeting VMs), and more.</p>
+		<p>Since there's no way to predict what may be needed there, os-image-builder simply allows overriding parts of the build script with device specific functionality - by creating scripts in the device directory.</p>
+		<p>These scripts sit next to the <i>config</i> file described earlier, and replace "standard" functionality. The following scripts will be called if they exist:</p>
+		<p><ul>
+			<li><tt>download_kernel_extras</tt> - called between downloading and building the kernel when using a custom kernel repository, to allow e.g. integrating 3rd party modules into the kernel tree. The default implementation does nothing.</li>
+			<li><tt>setup-system-files</tt> - called after the root filesystem has been created, allowing creating custom files like a special fstab, kernel module config, etc. The default implementation does nothing.</li>
+			<li><tt>generate-initrd</tt> - called after setup-system-files to generate the initrd/initramfs [if needed]. The default implementation calls dracut on the installed kernel version. (This is overridden, for example, in OCI images to make sure the initramfs includes iscsi support)</li>
+			<li><tt>postprocess</tt> - called just before packaging the images to customize settings, enable/disable services, etc. The default implementation does nothing.</li>
+			<li><tt>generate-bootimg</tt> - generate a boot image. The default implementation sets up grub2 EFI</li>
+			<li><tt>generate-rootfs</tt> - generate the root filesystem. The default implementation creates a tarball (but most real world uses generate a filesystem image, usually along with a partition table)</li>
+		</ul></p>
+	</body>
+</html>
