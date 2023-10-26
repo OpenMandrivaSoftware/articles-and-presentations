@@ -7,8 +7,8 @@ booting in qemu and on initial hardware.
 And some even better news: It has been done the right way, which should make ports to new
 architectures much easier in the future.
 
-And to top it off, it was bootstrapped with our favorite hardware, an Aarch64 box with an
-Ampere Altra CPU, with no need for boring x86 bits and pieces.
+And to top it off, it was bootstrapped with our favorite hardware, an [Aarch64 box](https://www.openmandriva.org/89) with an
+[Ampere](https://amperecomputing.com) Altra CPU, with no need for boring x86 bits and pieces.
 
 
 How it works
