@@ -16,7 +16,7 @@ How it works
 
 OpenMandriva has been making an effort to make the distribution more portable across hardware
 platforms for a few years, getting rid of x86 specific bits, adapting packages to handle other
-architectures, building https://github.com/OpenMandrivaSoftware/os-image-builder as a replacement
+architectures, building [os-image-builder](https://github.com/OpenMandrivaSoftware/os-image-builder) as a replacement
 for the old image builder that could handle only x86 bootloaders and ISO9660 files, and building
 crosscompiling toolchains into the system from the ground up.
 
@@ -50,8 +50,7 @@ without having to maintain several copies of the package.
 
 The last missing bit was a script that gets the needed package and the build order, along with
 the right options to activate the `%bcond_with/%bcond_without` options for the early, feature
-reduced, builds -- which now exists in the form of
-https://github.com/OpenMandrivaSoftware/crossbuild
+reduced, builds -- which now exists in the form of [crossbuild](https://github.com/OpenMandrivaSoftware/crossbuild).
 
 You tell it what you want to target (e.g. riscv64-linux) and give it some time, and (with any
 luck) it produces a set of packages sufficient to get a basic OpenMandriva system up and
